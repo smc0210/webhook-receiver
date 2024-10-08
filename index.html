@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+    <meta http-equiv="Pragma" content="no-cache"/>
+    <meta http-equiv="Expires" content="0"/>
+    <!-- highlight.js 스타일시트 추가 -->
+    <link rel="stylesheet"
+          href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/default.min.css">
+    <!-- highlight.js 라이브러리 추가 -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .button-container {
+            margin-bottom: 20px;
+        }
+
+        button, input[type="date"] {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button {
+            color: white;
+        }
+
+        #refreshButton {
+            background-color: #007bff;
+        }
+
+        #refreshButton:hover {
+            background-color: #0056b3;
+        }
+
+        #fetchLogsButton {
+            background-color: #28a745;
+        }
+
+        #fetchLogsButton:hover {
+            background-color: #218838;
+        }
+
+        #clearLogsButton {
+            background-color: #dc3545;
+        }
+
+        #clearLogsButton:hover {
+            background-color: #c82333;
+        }
+
+        input[type="date"] {
+            background-color: #fff;
+            border: 1px solid #ccc;
+        }
+
+        input[type="date"]::-webkit-inner-spin-button,
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        #jsonOutput {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        pre {
+            background-color: #f4f4f9;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        #confirmClear {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        #confirmClear:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Received Webhook Events</h1>
+    <div class="button-container">
+        <button id="refreshButton">Refresh Logs</button>
+        <input type="date" id="logDate" />
+        <button id="fetchLogsButton">Fetch Logs</button>
+        <button id="clearLogsButton">Clear Logs</button>
+    </div>
+    <div id="jsonOutput"></div>
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <p>Are you sure you want to clear the logs for the selected date?</p>
+            <button id="confirmClear">Clear Logs</button>
+        </div>
+    </div>
+    <script>
+        const jsonOutput = document.getElementById('jsonOutput');
+        const refreshButton = document.getElementById('refreshButton');
+        const fetchLogsButton = document.getElementById('fetchLogsButton');
+        const clearLogsButton = document.getElementById('clearLogsButton');
+        const logDate = document.getElementById('logDate');
+        const modal = document.getElementById('modal');
+        const closeModal = document.getElementById('closeModal');
+        const confirmClear = document.getElementById('confirmClear');
+
+        refreshButton.addEventListener('click', fetchExistingLogs);
+        fetchLogsButton.addEventListener('click', fetchLogsForDate);
+        clearLogsButton.addEventListener('click', () => { modal.style.display = 'block'; });
+        closeModal.addEventListener('click', () => { modal.style.display = 'none'; });
+        confirmClear.addEventListener('click', clearLogsForDate);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            logDate.value = today;
+        });
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function fetchExistingLogs() {
+            const date = logDate.value;
+            fetch(`/logs?date=${date}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Fetched logs:", data);
+                    jsonOutput.innerHTML = '';
+                    data.forEach(item => {
+                        displayJson(item);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error fetching logs:", error);
+                    jsonOutput.innerHTML = 'No logs found for today.';
+                });
+        }
+
+        function fetchLogsForDate() {
+            const date = logDate.value;
+            if (!date) {
+                alert("Please select a date");
+                return;
+            }
+
+            fetch(`/logs?date=${date}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Fetched logs:", data);
+                    jsonOutput.innerHTML = '';
+                    data.forEach(item => {
+                        displayJson(item);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error fetching logs:", error);
+                    jsonOutput.innerHTML = `No logs found for ${date}.`;
+                });
+        }
+
+        function clearLogsForDate() {
+            const date = logDate.value;
+            if (!date) {
+                alert("Please select a date");
+                return;
+            }
+
+            fetch(`/clear_logs?date=${date}`, { method: 'DELETE' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    jsonOutput.innerHTML = '';
+                    modal.style.display = 'none';
+                    alert(`Logs for ${date} cleared successfully.`);
+                })
+                .catch(error => {
+                    console.error("Error clearing logs:", error);
+                });
+        }
+
+        function displayJson(data) {
+            console.log("Displaying data:", data);
+            try {
+                const newEventElement = document.createElement('pre');
+                newEventElement.classList.add('json');
+                const prettyJson = JSON.stringify(data, null, 2);
+                newEventElement.textContent = prettyJson;
+                jsonOutput.appendChild(newEventElement);
+                hljs.highlightElement(newEventElement);
+            } catch (e) {
+                console.error("Error displaying JSON data:", e);
+            }
+        }
+
+        window.onload = fetchExistingLogs;
+    </script>
+</body>
+</html>
