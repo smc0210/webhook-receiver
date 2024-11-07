@@ -231,7 +231,6 @@ func readExistingLogs() {
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Printf("No existing log file found: %s", fileName)
-			// 파일이 없으면 새로 생성
 			_, err := os.Create(fileName)
 			if err != nil {
 				log.Fatalf("Failed to create new log file: %s", err)
@@ -297,7 +296,7 @@ func main() {
 		ngrokStaticDomain: os.Getenv("NGROK_STATIC_DOMAIN"),
 	}
 
-	// 기존 NGROK 세션 종료
+	// ngrok 무료 account는 한개의 세션만 허용하므로, 이전 세션을 종료합니다.
 	stopNgrok()
 
 	log.Println("Attempting to start ngrok...")
@@ -319,7 +318,6 @@ func main() {
 		}
 	}()
 
-	// 서버가 시작된 후 기존 로그 파일 읽기
 	readExistingLogs()
 
 	// Graceful shutdown
