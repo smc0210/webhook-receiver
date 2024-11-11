@@ -183,6 +183,10 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func webhook5xxHandler(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Fake Internal Server Error", http.StatusInternalServerError)
+}
+
 func logsHandler(w http.ResponseWriter, r *http.Request) {
 	date := r.URL.Query().Get("date")
 	if date == "" {
@@ -282,6 +286,7 @@ func clearLogsHandler(w http.ResponseWriter, r *http.Request) {
 func handleRequests() {
 	http.Handle("/", loggingMiddleware(http.HandlerFunc(rootHandler)))
 	http.Handle("/webhook", loggingMiddleware(http.HandlerFunc(webhookHandler)))
+	http.Handle("/webhook500", loggingMiddleware(http.HandlerFunc(webhook5xxHandler)))
 	http.Handle("/logs", loggingMiddleware(http.HandlerFunc(logsHandler)))
 	http.Handle("/clear_logs", loggingMiddleware(http.HandlerFunc(clearLogsHandler)))
 }
