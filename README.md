@@ -13,17 +13,10 @@ This application provides a simple server to receive webhook events and displays
 
 ## Usage
 
-1. Start the server:
-    ```bash
-    cd corewebhook
-    go run .
-    ```
-
-2. Start the webhook receiver:
-    ```bash
-    cd webhook
-    ./webhook-receiver
-    ```
+```bash
+cd webhook
+./webhook-receiver
+```
 
 Use the `Forwarding` address obtained to send webhooks.
 
